@@ -4,6 +4,12 @@ use chrono::NaiveDateTime;
 #[derive(Debug, Clone)]
 pub struct EventData;
 
+#[derive(Debug, Clone, Copy)]
+pub struct ConnectionData {
+    pub timestamp: NaiveDateTime,
+    pub steam_id: u64,
+}
+
 #[derive(Debug, Clone)]
 pub struct SpawnData {
     pub timestamp: NaiveDateTime,
@@ -19,8 +25,8 @@ pub struct SaveData {
 
 #[derive(Debug, Clone)]
 pub enum Event {
-    UserConnected(EventData),
-    UserDisconnected(EventData),
+    UserConnected(ConnectionData),
+    UserDisconnected(ConnectionData),
     WorldSaved(SaveData),
     CharacterDied(SpawnData),
     CharacterSpawned(SpawnData)
