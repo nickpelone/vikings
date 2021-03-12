@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+	"valheim-watcher",
+    "valheim-log-parser",
+]
