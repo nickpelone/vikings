@@ -4,6 +4,7 @@ use lazy_static::lazy_static;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 
 pub mod event;
+pub use event::{Event, SpawnData, EventData, SaveData};
 
 lazy_static! {
     pub static ref LOG_LINE_REGEX: Regex = Regex::new(
@@ -13,9 +14,13 @@ lazy_static! {
     pub static ref CHARACTER_LOCATION_REGEX: Regex = Regex::new(
         r#"Got\scharacter\sZDOID\sfrom\s(?P<charname>.*)\s:\s(?P<location>.*)$"#
     ).unwrap();
+
+    pub static ref WORLD_SAVE_REGEX: Regex = Regex::new(
+        r#"World\ssaved\s\(\s(?P<timing>.+)ms\s\)"#
+    ).unwrap();
 }
 
-pub fn parse(line: &str) {
+pub fn parse(line: &str) -> Option<Event> {
     let caps = LOG_LINE_REGEX.captures(line);
     if let Some(c) = caps {
         let day = &c["day"];
@@ -25,12 +30,31 @@ pub fn parse(line: &str) {
         let date = NaiveDate::parse_from_str(day, "%m/%d/%Y").unwrap();
         let time = NaiveTime::parse_from_str(ts, "%T").unwrap();
 
-        let final_ts = NaiveDateTime::new(date, time);
+
+        let timestamp = NaiveDateTime::new(date, time);
 
         if let Some(event_captures) = CHARACTER_LOCATION_REGEX.captures(info) {
-            println!("Character {} moved set to location {} @ {}", &event_captures["charname"], &event_captures["location"], final_ts);
+            let character = String::from(&event_captures["charname"]);
+            let coords: Vec<&str> = event_captures["location"].split(":").collect();
+            let x: i64 = coords[0].parse().unwrap();
+            let y: i64 = coords[1].parse().unwrap();
+            let location = (x,y);
+
+            let ev = SpawnData { timestamp, character, location };
+
+            if x == 0 && y == 0 {
+                return Some(Event::CharacterDied(ev));
+            } else {
+                return Some(Event::CharacterSpawned(ev));
+            }
+        }
+
+        if let Some(save) = WORLD_SAVE_REGEX.captures(info) {
+            let save_time: f64 = save["timing"].parse().unwrap();
+            return Some(Event::WorldSaved(SaveData{ timestamp, time_spent: save_time }));
         }
     }
+    None
 }
 
 #[cfg(test)]
@@ -49,13 +73,18 @@ mod tests {
         let f = std::fs::File::open("./example_server_logs.txt")?;
         let reader = BufReader::new(f);
 
-        let line = reader.lines().filter_map(|l| l.ok());
+        let events = reader.lines().filter_map(|l| {
+            if let Ok(s) = l {
+                parse(&s)
+            } else {
+                None
+            }
+        });
 
-        for l in line {
-            parse(&l);
+        for e in events {
+            println!("{:#?}", e);
         }
 
         Ok(())
-
     }
 }
