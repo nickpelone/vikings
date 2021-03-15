@@ -22,6 +22,10 @@ lazy_static! {
     pub static ref USER_CONNECTED_REGEX: Regex = Regex::new(
         r#"Got\sconnection\sSteamID\s(?P<steamid>\d+)$"#
     ).unwrap();
+
+    pub static ref USER_DISCONNECTED_REGEX: Regex = Regex::new(
+        r#"Closing\ssocket\s(?P<steamid>\d+)$"#
+    ).unwrap();
 }
 
 pub fn parse(line: &str) -> Option<Event> {
@@ -33,7 +37,6 @@ pub fn parse(line: &str) -> Option<Event> {
 
         let date = NaiveDate::parse_from_str(day, "%m/%d/%Y").unwrap();
         let time = NaiveTime::parse_from_str(ts, "%T").unwrap();
-
 
         let timestamp = NaiveDateTime::new(date, time);
 
@@ -61,6 +64,11 @@ pub fn parse(line: &str) -> Option<Event> {
         if let Some(connect) = USER_CONNECTED_REGEX.captures(info) {
             let steam_id: u64 = connect["steamid"].parse().unwrap();
             return Some(Event::UserConnected(ConnectionData{ timestamp, steam_id }));
+        }
+
+        if let Some(disconnect) = USER_DISCONNECTED_REGEX.captures(info) {
+            let steam_id: u64 = disconnect["steamid"].parse().unwrap();
+            return Some(Event::UserDisconnected(ConnectionData{ timestamp, steam_id }));
         }
     }
     None
