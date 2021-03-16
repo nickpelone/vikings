@@ -29,5 +29,6 @@ pub enum Event {
     UserDisconnected(ConnectionData),
     WorldSaved(SaveData),
     CharacterDied(SpawnData),
-    CharacterSpawned(SpawnData)
+    CharacterSpawned(SpawnData),
+    IncorrectPasswordGiven(ConnectionData),
 }

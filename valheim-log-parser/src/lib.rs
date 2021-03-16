@@ -26,8 +26,13 @@ lazy_static! {
     pub static ref USER_DISCONNECTED_REGEX: Regex = Regex::new(
         r#"Closing\ssocket\s(?P<steamid>\d+)$"#
     ).unwrap();
+
+    pub static ref WRONG_PASSWORD_REGEX: Regex = Regex::new(
+        r#"Peer\s(?P<steamid>\d+)\shas\swrong\spassword$"#
+    ).unwrap();
 }
 
+// TODO: model errors w/ thiserror
 pub fn parse(line: &str) -> Option<Event> {
     let caps = LOG_LINE_REGEX.captures(line);
     if let Some(c) = caps {
@@ -70,6 +75,11 @@ pub fn parse(line: &str) -> Option<Event> {
             let steam_id: u64 = disconnect["steamid"].parse().unwrap();
             return Some(Event::UserDisconnected(ConnectionData{ timestamp, steam_id }));
         }
+
+        if let Some(wrong) = WRONG_PASSWORD_REGEX.captures(info) {
+            let steam_id: u64 = wrong["steamid"].parse().unwrap();
+            return Some(Event::IncorrectPasswordGiven(ConnectionData{ timestamp, steam_id}))
+        }
     }
     None
 }
@@ -77,6 +87,7 @@ pub fn parse(line: &str) -> Option<Event> {
 #[cfg(test)]
 mod tests {
     use super::parse;
+    use crate::Event;
     use std::io::{BufRead, BufReader};
 
     #[test]
@@ -109,5 +120,17 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    #[test]
+    fn test_invalid_password() {
+        let logstr = "03/16/2021 13:45:19: Peer 76561197969472572 has wrong password";
+        let res = parse(&logstr);
+
+        if let Some(Event::IncorrectPasswordGiven(_)) = res {
+            //
+        } else {
+            panic!("Didn't get incorrect password event from parse");
+        }
     }
 }
