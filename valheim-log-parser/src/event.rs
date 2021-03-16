@@ -20,7 +20,7 @@ pub struct SpawnData {
 #[derive(Debug, Clone, Copy)]
 pub struct SaveData {
     pub timestamp: NaiveDateTime,
-    pub time_spent: f64
+    pub time_spent: f64,
 }
 
 #[derive(Debug, Clone)]
