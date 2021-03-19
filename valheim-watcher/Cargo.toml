@@ -12,3 +12,4 @@ anyhow = "1.0.38"
 nix = "0.20.0"
 signal-hook = "0.3.7"
 chrono = "0.4.19"
+discord = { git = "https://github.com/SpaceManiac/discord-rs", branch = "master" }
