@@ -35,7 +35,6 @@ pub enum ParseError {
     Float(#[from] std::num::ParseFloatError)
 }
 
-// TODO: model errors w/ thiserror
 pub fn parse(line: &str) -> Result<Option<Event>, ParseError> {
     let caps = LOG_LINE_REGEX.captures(line);
     if let Some(c) = caps {
