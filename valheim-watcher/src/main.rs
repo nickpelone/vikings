@@ -110,7 +110,35 @@ fn main() -> anyhow::Result<()> {
     let mut pending_chars: Vec<String> = Vec::new();
 
     // and the grand state table itself - SteamIDs -> Character names
-    let mut state: HashMap<u64, String> = HashMap::new();
+    let state: HashMap<u64, String> = HashMap::new();
+    let state = Arc::new(Mutex::new(state));
+
+    let chat_state = state.clone();
+    let chat_bot = bot.clone();
+    let chat_channel = channel.clone();
+
+    thread::spawn(move || {
+        println!("Started chat monitor");
+        let mut conn = _conn.0;
+        loop {
+            match conn.recv_event() {
+                Ok(discord::model::Event::MessageCreate(msg)) => {
+                    if msg.content == "!valheim" {
+                        let chat_state = chat_state.lock().unwrap();
+                        let response = format!("Users connected: {:#?}", chat_state);
+                        let bot = chat_bot.lock().unwrap();
+                        bot.send_message(chat_channel.id, &response, "", false)?;
+                    }
+                },
+                Ok(_) => {},
+                Err(e) => {
+                    eprintln!("Chat thread got an error from discord: {}", e);
+                    break;
+                }
+            };
+        }
+        Ok::<(), anyhow::Error>(())
+    });
 
     for line in lines {
         // Extract the String from the Result, adding additional context if it fails.
@@ -131,6 +159,7 @@ fn main() -> anyhow::Result<()> {
                     }
                     Event::UserDisconnected(cd) => {
                         // If the user was successfully removed from the state table, send a bot message
+                        let mut state = state.lock().unwrap();
                         if let Some((id, character)) = state.remove_entry(&cd.steam_id) {
                             let msg = format!(
                                 "{} has disconnected.\nhttps://steamcommunity.com/profiles/{}",
@@ -148,6 +177,7 @@ fn main() -> anyhow::Result<()> {
                         println!("World saved at {}, {}ms", s.timestamp, s.time_spent);
                     }
                     Event::CharacterDied(sp) => {
+                        let state = state.lock().unwrap();
                         let steamid = lib::steamid_from_character(&sp.character, &state);
 
                         let msg = format!("{} died an uneventful death. GGWP", sp.character);
@@ -156,6 +186,7 @@ fn main() -> anyhow::Result<()> {
                         println!("{} ({}) died.", sp.character, steamid);
                     }
                     Event::CharacterSpawned(sp) => {
+                        let state = state.lock().unwrap();
                         let steamid = lib::steamid_from_character(&sp.character, &state);
 
                         println!("{} ({}) spawned.", sp.character, steamid);
@@ -177,6 +208,7 @@ fn main() -> anyhow::Result<()> {
                     if let Some(c) = pending_chars.get(0) {
                         let id = *id;
                         let character = c.clone();
+                        let mut state = state.lock().unwrap();
 
                         state.insert(id, character.clone());
                         pending_chars.remove(0);
