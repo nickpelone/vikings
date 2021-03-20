@@ -101,81 +101,88 @@ fn main() -> anyhow::Result<()> {
     let mut state: HashMap<u64, String> = HashMap::new();
 
     for line in lines {
-        // Extrac the String from the Result, adding additional context if it fails.
+        // Extract the String from the Result, adding additional context if it fails.
         let l = line.context("Unable to read line, server may have died")?;
 
         // Write the line to the logfile
         write!(&mut logfile, "{}\n", &l)?;
 
-        if let Some(event) = parse(&l) {
-            let bot = bot.lock().unwrap();
+        match parse(&l) {
+            Ok(Some(event)) => {
+                let bot = bot.lock().unwrap();
 
-            match event {
-                Event::UserConnected(cd) => {
-                    println!("Received new connection from SteamID {}", cd.steam_id);
+                match event {
+                    Event::UserConnected(cd) => {
+                        println!("Received new connection from SteamID {}", cd.steam_id);
 
-                    pending_ids.push(cd.steam_id);
-                }
-                Event::UserDisconnected(cd) => {
-                    // If the user was successfully removed from the state table, send a bot message
-                    if let Some((id, character)) = state.remove_entry(&cd.steam_id) {
+                        pending_ids.push(cd.steam_id);
+                    }
+                    Event::UserDisconnected(cd) => {
+                        // If the user was successfully removed from the state table, send a bot message
+                        if let Some((id, character)) = state.remove_entry(&cd.steam_id) {
+                            let msg = format!(
+                                "{} has disconnected.\nhttps://steamcommunity.com/profiles/{}",
+                                character, id
+                            );
+                            bot.send_message(channel.id, &msg, "", false)?;
+
+                            println!("{} ({}) disconnected.", character, id);
+                        } else {
+                            // This might have been one of those double-logging disconnect messages.
+                            // TODO: What should be done?
+                        }
+                    }
+                    Event::WorldSaved(s) => {
+                        println!("World saved at {}, {}ms", s.timestamp, s.time_spent);
+                    }
+                    Event::CharacterDied(sp) => {
+                        let steamid = lib::steamid_from_character(&sp.character, &state);
+
+                        let msg = format!("{} died an uneventful death. GGWP", sp.character);
+                        bot.send_message(channel.id, &msg, "", false)?;
+
+                        println!("{} ({}) died.", sp.character, steamid);
+                    }
+                    Event::CharacterSpawned(sp) => {
+                        let steamid = lib::steamid_from_character(&sp.character, &state);
+
+                        println!("{} ({}) spawned.", sp.character, steamid);
+
+                        let is_character_tracked = state.values().any(|x| x.clone() == sp.character);
+                        if !is_character_tracked {
+                            pending_chars.push(sp.character);
+                        }
+                    }
+                    Event::IncorrectPasswordGiven(cd) => {
+                        pending_ids.retain(|x| *x != cd.steam_id);
+                        bot.send_message(channel.id, &format!("A user gave the wrong password.\nhttps://steamcommunity.com/profiles/{}", cd.steam_id), "", false)?;
+                        println!("SteamID {} gave wrong password, rejected.", cd.steam_id);
+                    }
+                };
+
+                if let Some(id) = pending_ids.get(0) {
+                    if let Some(c) = pending_chars.get(0) {
+                        let id = *id;
+                        let character = c.clone();
+
+                        state.insert(id, character.clone());
+                        pending_chars.remove(0);
+                        pending_ids.remove(0);
+
                         let msg = format!(
-                            "{} has disconnected.\nhttps://steamcommunity.com/profiles/{}",
+                            "{} has connected.\nhttps://steamcommunity.com/profiles/{}",
                             character, id
                         );
                         bot.send_message(channel.id, &msg, "", false)?;
-
-                        println!("{} ({}) disconnected.", character, id);
-                    } else {
-                        // This might have been one of those double-logging disconnect messages.
-                        // TODO: What should be done?
                     }
                 }
-                Event::WorldSaved(s) => {
-                    println!("World saved at {}, {}ms", s.timestamp, s.time_spent);
-                }
-                Event::CharacterDied(sp) => {
-                    let steamid = lib::steamid_from_character(&sp.character, &state);
-
-                    let msg = format!("{} died an uneventful death. GGWP", sp.character);
-                    bot.send_message(channel.id, &msg, "", false)?;
-
-                    println!("{} ({}) died.", sp.character, steamid);
-                }
-                Event::CharacterSpawned(sp) => {
-                    let steamid = lib::steamid_from_character(&sp.character, &state);
-
-                    println!("{} ({}) spawned.", sp.character, steamid);
-
-                    let is_character_tracked = state.values().any(|x| x.clone() == sp.character);
-                    if !is_character_tracked {
-                        pending_chars.push(sp.character);
-                    }
-                }
-                Event::IncorrectPasswordGiven(cd) => {
-                    pending_ids.retain(|x| *x != cd.steam_id);
-                    bot.send_message(channel.id, &format!("A user gave the wrong password.\nhttps://steamcommunity.com/profiles/{}", cd.steam_id), "", false)?;
-                    println!("SteamID {} gave wrong password, rejected.", cd.steam_id);
-                }
-            };
-
-            if let Some(id) = pending_ids.get(0) {
-                if let Some(c) = pending_chars.get(0) {
-                    let id = *id;
-                    let character = c.clone();
-
-                    state.insert(id, character.clone());
-                    pending_chars.remove(0);
-                    pending_ids.remove(0);
-
-                    let msg = format!(
-                        "{} has connected.\nhttps://steamcommunity.com/profiles/{}",
-                        character, id
-                    );
-                    bot.send_message(channel.id, &msg, "", false)?;
-                }
+            },
+            Ok(None) => {}, // we don't care, it was a useless line
+            Err(e) => {
+                eprintln!("Unable to parse Valheim log line: {}", e);
+                continue;
             }
-        }
+        };
     }
 
     // Ensure any OS-buffered logs are written to disk before shutdown
