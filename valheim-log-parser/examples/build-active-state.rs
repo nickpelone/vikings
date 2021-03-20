@@ -10,7 +10,7 @@ fn main() -> std::io::Result<()> {
 
     let events = reader
         .lines()
-        .filter_map(|x| if let Ok(s) = x { parse(&s) } else { None });
+        .filter_map(|x| if let Ok(s) = x { parse(&s).unwrap() } else { None });
 
     let mut state: HashMap<u64, String> = HashMap::new();
     let mut pending_steam_ids: Vec<u64> = Vec::new();
