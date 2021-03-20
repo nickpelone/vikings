@@ -46,7 +46,7 @@ fn main() -> anyhow::Result<()> {
     println!("Starting server");
 
     // Spawn server and capture stdout
-    let mut server = lib::spawn_server(&c);
+    let mut server = lib::spawn_server(&c)?;
     let stdout = server
         .stdout
         .take()
@@ -80,7 +80,7 @@ fn main() -> anyhow::Result<()> {
             println!("[WATCHER]: Shutting down server");
             bot.send_message(signalchannel.id, "Valheim server shutting down", "", false)?;
 
-            lib::shutdown_server(server.id() as i32);
+            lib::shutdown_server(server.id() as i32)?;
             server
                 .wait()
                 .context("Couldn't finish wait() for server child process")?;

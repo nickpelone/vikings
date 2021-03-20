@@ -8,14 +8,13 @@ use std::{
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
 
+use anyhow::Context;
 #[derive(Clone, Debug)]
 pub struct Config {
     pub start_script: PathBuf,
     pub bot_key: String,
     pub channel_id: u64,
 }
-
-// TODO: proper errors - use anyhow::Result<()> for failables
 
 impl Config {
     pub fn new<P: AsRef<Path>>(path: P, bot_key: String, channel_id: u64) -> Config {
@@ -37,7 +36,7 @@ impl Config {
     }
 }
 
-pub fn spawn_server(config: &Config) -> Child {
+pub fn spawn_server(config: &Config) -> anyhow::Result<Child> {
     env::set_current_dir(&config.start_script.parent().unwrap())
         .expect("Unable to change directory to Valheim dedicated server location.");
     Command::new("bash")
@@ -45,13 +44,13 @@ pub fn spawn_server(config: &Config) -> Child {
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .expect(
+        .context(
             "Unable to launch Valheim dedicated server. Check the VALHEIM_START_SCRIPT env var.",
         )
 }
 
-pub fn shutdown_server(pid: i32) {
-    signal::kill(Pid::from_raw(pid), Signal::SIGINT).expect("Unable to send SIGTERM to server");
+pub fn shutdown_server(pid: i32) -> anyhow::Result<()> {
+    signal::kill(Pid::from_raw(pid), Signal::SIGINT).context("Unable to send SIGTERM to server")
 }
 
 pub fn steamid_from_character(character: &str, state: &HashMap<u64, String>) -> u64 {
