@@ -6,7 +6,7 @@ use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use thiserror::{Error};
 
 pub mod event;
-pub use event::{ConnectionData, Event, EventData, SaveData, SpawnData};
+pub use event::{ConnectionData, Event, SaveData, SpawnData};
 
 lazy_static! {
     pub static ref LOG_LINE_REGEX: Regex =

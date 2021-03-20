@@ -1,9 +1,5 @@
 use chrono::NaiveDateTime;
 
-/// placeholder struct until I spec out more events and their relevant data
-#[derive(Debug, Clone)]
-pub struct EventData;
-
 #[derive(Debug, Clone, Copy)]
 pub struct ConnectionData {
     pub timestamp: NaiveDateTime,
