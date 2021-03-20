@@ -1,14 +1,54 @@
-use std::collections::HashMap;
-use std::env;
 use std::{
+    collections::{HashMap},
+    env,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
+    fmt
 };
 
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
 
 use anyhow::Context;
+
+pub const STEAM_COMMUNITY: &str = "https://steamcommunity.com/profiles/";
+pub const DEATH_GIFS: &[&str] = &[
+    "https://media.giphy.com/media/BwRzjeqPnC6Dm/giphy.gif", // Kim K tragic gif
+    "https://media.giphy.com/media/3o6Mb8ARo4g0MBKxvq/giphy.gif", // homer simpson crying
+    "https://media.giphy.com/media/26vIdFahaDedVAb8k/giphy.gif", // blue planet fish getting eaten
+    "https://media.giphy.com/media/65i0TaZCsNlks/giphy.gif", // betty white golden girls
+    "https://media.giphy.com/media/JvEMPOQubkyQx9YLQ5/giphy.gif", // mindy office
+    "https://media.giphy.com/media/yF3ci8XI6RY8E/giphy.gif", // rocko's modern life fish
+    "https://media.giphy.com/media/3oFzmlxO0EvgAh2qaI/giphy.gif", // portlandia fred armisen
+];
+
+#[derive(Clone, Debug)]
+pub struct State {
+    pub table: HashMap<u64, String>
+}
+
+impl State {
+    pub fn steamid_from_character(&self, character: &str) -> u64 {
+        *self.table
+            .iter()
+            .find_map(|(key, val)| if val == character { Some(key) } else { None })
+            .unwrap_or(&0)
+    }
+}
+
+impl fmt::Display for State {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.table.len() == 0 {
+            write!(f, "No users connected.\n")
+        } else {
+            for (k, v) in self.table.iter() {
+                write!(f, "{} - https://steamcommunity.com/profiles/{}\n", v, k)?;
+            }
+            write!(f, "\n")
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Config {
     pub start_script: PathBuf,
@@ -51,11 +91,4 @@ pub fn spawn_server(config: &Config) -> anyhow::Result<Child> {
 
 pub fn shutdown_server(pid: i32) -> anyhow::Result<()> {
     signal::kill(Pid::from_raw(pid), Signal::SIGINT).context("Unable to send SIGTERM to server")
-}
-
-pub fn steamid_from_character(character: &str, state: &HashMap<u64, String>) -> u64 {
-    *state
-        .iter()
-        .find_map(|(key, val)| if val == character { Some(key) } else { None })
-        .unwrap_or(&0)
 }
