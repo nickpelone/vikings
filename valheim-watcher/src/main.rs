@@ -25,14 +25,27 @@ use chrono::Utc;
 
 fn main() -> anyhow::Result<()> {
     // Get config
-    let c = lib::Config::build_from_env()?;
-    println!("{:#?}", c);
+    let c = match lib::Config::build_from_env() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!(
+                "Unable to build runtime config from the environment. Check your:\n\
+                - VALHEIM_START_SCRIPT\n\
+                - DISCORD_KEY\n\
+                - CHANNEL_ID\n\
+                environment variables and try again."
+            );
+            return Err(e);
+        }
+    };
 
     let bot = Arc::new(Mutex::new(discord::Discord::from_bot_token(&c.bot_key)?));
     let _conn = {
         let bot = bot.lock().unwrap();
         bot.connect()?
     };
+
+    _conn.0.set_game_name("Valheim Dedicated Server".to_owned());
 
     let channel = {
         let bot = bot.lock().unwrap();
