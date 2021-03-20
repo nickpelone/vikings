@@ -5,7 +5,6 @@
 ///
 /// author: Nick Pelone <nick.pelone@gmail.com> / <nick.pelone@calyptix.com>
 ///
-
 mod lib;
 
 use discord::model::{Channel, ChannelId};
@@ -148,7 +147,8 @@ fn main() -> anyhow::Result<()> {
 
                         println!("{} ({}) spawned.", sp.character, steamid);
 
-                        let is_character_tracked = state.values().any(|x| x.clone() == sp.character);
+                        let is_character_tracked =
+                            state.values().any(|x| x.clone() == sp.character);
                         if !is_character_tracked {
                             pending_chars.push(sp.character);
                         }
@@ -176,8 +176,8 @@ fn main() -> anyhow::Result<()> {
                         bot.send_message(channel.id, &msg, "", false)?;
                     }
                 }
-            },
-            Ok(None) => {}, // we don't care, it was a useless line
+            }
+            Ok(None) => {} // we don't care, it was a useless line
             Err(e) => {
                 eprintln!("Unable to parse Valheim log line: {}", e);
                 continue;

@@ -8,9 +8,13 @@ fn main() -> std::io::Result<()> {
     let f = File::open("./ValheimServerLogs2Login.txt")?;
     let reader = BufReader::new(f);
 
-    let events = reader
-        .lines()
-        .filter_map(|x| if let Ok(s) = x { parse(&s).unwrap() } else { None });
+    let events = reader.lines().filter_map(|x| {
+        if let Ok(s) = x {
+            parse(&s).unwrap()
+        } else {
+            None
+        }
+    });
 
     let mut state: HashMap<u64, String> = HashMap::new();
     let mut pending_steam_ids: Vec<u64> = Vec::new();

@@ -3,7 +3,7 @@ use regex::Regex;
 
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 
-use thiserror::{Error};
+use thiserror::Error;
 
 pub mod event;
 pub use event::{ConnectionData, Event, SaveData, SpawnData};
@@ -32,7 +32,7 @@ pub enum ParseError {
     #[error("Unable to parse expected integer value")]
     Integer(#[from] std::num::ParseIntError),
     #[error("Unable to parse expected float value")]
-    Float(#[from] std::num::ParseFloatError)
+    Float(#[from] std::num::ParseFloatError),
 }
 
 pub fn parse(line: &str) -> Result<Option<Event>, ParseError> {
@@ -125,9 +125,13 @@ mod tests {
         let f = std::fs::File::open("./example_server_logs.txt")?;
         let reader = BufReader::new(f);
 
-        let events = reader
-            .lines()
-            .filter_map(|l| if let Ok(s) = l { parse(&s).unwrap() } else { None });
+        let events = reader.lines().filter_map(|l| {
+            if let Ok(s) = l {
+                parse(&s).unwrap()
+            } else {
+                None
+            }
+        });
 
         for e in events {
             println!("{:#?}", e);
