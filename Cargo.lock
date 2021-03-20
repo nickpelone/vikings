@@ -966,6 +966,7 @@ dependencies = [
  "chrono",
  "discord",
  "nix",
+ "rand 0.8.3",
  "signal-hook",
  "valheim-log-parser",
 ]
